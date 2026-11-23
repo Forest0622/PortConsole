@@ -1,0 +1,8 @@
+logs/
+dist/
+.DS_Store
+services.json
+assets/icon-src.png
+*.tmp
+docs/preview.png
+docs/preview-narrow.png
