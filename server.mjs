@@ -482,6 +482,12 @@ function atomicWrite(file, content) {
 const AUTO_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTO_MAX = 80;
 
+/** 命令指纹：忽略自己监听的端口号，用来识别「同一个程序换了个端口」 */
+function cmdSignature(command, port) {
+  const p = Number(port);
+  return String(command || '').replace(new RegExp(`\\b${p}\\b`, 'g'), '#port#');
+}
+
 /**
  * 把当前所有监听端口并进 services.json：新端口自动建条目，已存在的自动条目同步命令/目录。
  * 只动 auto:true 的条目，手工写的配置不会被覆盖。
@@ -509,7 +515,7 @@ function syncAutoServices(rows) {
             s.auto &&
             !currentPorts.has(Number(s.port)) &&
             !children.has(s.id) &&
-            s.command === row.command
+            cmdSignature(s.command, s.port) === cmdSignature(row.command, row.port)
         )
         .sort((a, b) => Number(a.lastSeen || 0) - Number(b.lastSeen || 0))[0];
 
@@ -570,11 +576,13 @@ function syncAutoServices(rows) {
 
   // 清理：同一条命令已经换了端口占着卡位的旧条目，或 7 天没再监听的临时端口
   const seenCommands = new Set(
-    cfg.services.filter((s) => s.auto && seen.has(Number(s.port))).map((s) => s.command)
+    cfg.services
+      .filter((s) => s.auto && seen.has(Number(s.port)))
+      .map((s) => cmdSignature(s.command, s.port))
   );
   const kept = cfg.services.filter((s) => {
     if (!s.auto || seen.has(Number(s.port))) return true;
-    if (seenCommands.has(s.command)) return false; // 同命令仍在跑，只是换了端口
+    if (seenCommands.has(cmdSignature(s.command, s.port))) return false; // 同程序仍在跑，只是换了端口
     return now - Number(s.lastSeen || 0) <= AUTO_KEEP_MS;
   });
   if (kept.length !== cfg.services.length) {
