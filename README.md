@@ -39,7 +39,7 @@ xattr -dr com.apple.quarantine /Applications/PortConsole.app
 ## 源码运行
 
 ```bash
-cd ~/Personal/PortConsole
+cd /path/to/PortConsole
 node server.mjs
 ```
 
