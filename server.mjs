@@ -609,6 +609,7 @@ function syncAutoServices(rows) {
 
 async function killPort(port) {
   const target = Number(port);
+  if (target === PORT) throw new Error(`端口 ${PORT} 是当前控制台自身，不能结束自己`);
   const pids = await listListenerPids(target);
   if (!pids.length) return { port: target, killed: false, already: true };
 
@@ -711,6 +712,9 @@ function readBody(req) {
 
 async function handleAction(id, action) {
   const svc = findService(id);
+  if (Number(svc.port) === PORT) {
+    throw new Error(`端口 ${PORT} 是当前控制台自身，不能从自己里面停止自己`);
+  }
   if (action === 'start') return startService(svc);
   if (action === 'stop') return stopService(svc);
   if (action === 'restart') return restartService(svc);
@@ -723,7 +727,9 @@ async function handleAll(action) {
 
   const results = [];
   // 启动按配置顺序（配置顺序即启动顺序）；停止按倒序，先停后依赖的
-  const list = action === 'start' ? cfg.services : [...cfg.services].reverse();
+  // 永远跳过控制台自己的端口，否则批量停止会把正在提供界面的进程一起结束
+  const list = (action === 'start' ? cfg.services : [...cfg.services].reverse())
+    .filter((svc) => Number(svc.port) !== PORT);
 
   for (const svc of list) {
     const pids = await listListenerPids(svc.port);
